@@ -3,8 +3,40 @@ steps:
   BuildingDockerImage:
     title: Building Docker Image
     type: build
-    image_name: navikt/dpswaggereditor
+    image_name: navikt/dp-swagger-editor
     working_directory: ./
     tag: '${{CF_BRANCH_TAG_NORMALIZED}}'
     dockerfile: Dockerfile
+  RunningUnitTests:
+    title: Running Unit Tests
+    image: '${{BuildingDockerImage}}'
+    working_directory: IMAGE_WORK_DIR
+    entry_point:
+      - /bin/sh
+      - /codefresh/volume/cf-generated/unit_test_script
+    create_file:
+      path: /codefresh/volume/cf-generated
+      name: unit_test_script
+      content: echo 1
+    on_success:
+      metadata:
+        set:
+          - '${{BuildingDockerImage.imageId}}':
+              - CF_QUALITY: true
+    on_fail:
+      metadata:
+        set:
+          - '${{BuildingDockerImage.imageId}}':
+              - CF_QUALITY: false
+  RunningDeployScript:
+    title: Running Deploy Script
+    type: deploy
+    kind: kubernetes
+    cluster: dp-engprod@dagpenger-jenkins
+    namespace: swagger
+    when:
+      branch:
+        only:
+          - master
+    file_path: ./deployment.yml
 
